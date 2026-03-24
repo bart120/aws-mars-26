@@ -153,6 +153,7 @@ http://<ALB_DNS>
 Depuis CloudShell ou une autre instance :
 
 ```bash
+sudo dnf -y install httpd-tools
 ab -n 100000 -c 200 http://<ALB_DNS>/
 ```
 
