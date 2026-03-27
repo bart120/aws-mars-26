@@ -1,0 +1,66 @@
+AppRunnerAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-apprunner-access-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+
+  AppRunnerInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-apprunner-instance-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: apprunner-ddb-read
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                Resource: !GetAtt AppTable.Arn
+
+  OrdersApiService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: !Sub "${ProjectName}-orders-api"
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !GetAtt AppRunnerAccessRole.Arn
+        ImageRepository:
+          ImageRepositoryType: ECR
+          ImageIdentifier: !Sub "${ApiEcrRepository.RepositoryUri}:latest"
+          ImageConfiguration:
+            Port: "8080"
+            RuntimeEnvironmentVariables:
+              - Name: AWS_REGION
+                Value: !Ref AWS::Region
+              - Name: TABLE_NAME
+                Value: !Ref AppTable
+
+      InstanceConfiguration:
+        InstanceRoleArn: !GetAtt AppRunnerInstanceRole.Arn
+
+
+
+
+
+  AppRunnerServiceArn:
+    Value: !GetAtt OrdersApiService.ServiceArn
+  AppRunnerServiceUrl:
+    Value: !GetAtt OrdersApiService.ServiceUrl
